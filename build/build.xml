@@ -63,8 +63,9 @@ External Dependencies:
 		<!-- init dirs -->
 		<mkdir dir="${dist.dir}" />
 		<mkdir dir="${build.dir}"/>
-		<chmod file="${build.dir}/**" perm="g+wxrs" type="both" />
-
+   		<mkdir dir="${railo.lib.dir}" />
+   		<mkdir dir="${temp.dir}/cli/bin" />
+		
 		<!-- Increment Build Number -->
 		<propertyfile file="build.number" comment="Build Number for ANT. Edit not!">
 			<entry key="build.number" 
@@ -75,7 +76,7 @@ External Dependencies:
 		</propertyfile>
 		<!-- Retrieve Build Number -->
 		<property file="build.number"/>
-
+		
 		<!-- Create version file -->
 		<echo file="${build.dir}/.version" append="false">${commandbox.version}+${build.number}</echo>
 		
@@ -83,9 +84,12 @@ External Dependencies:
 		<antcall target="update.permissions" />
 
 		<!-- get commandbox dependencies -->
-		<dependency groupId="jline" artifactId="jline" version="2.12-SNAPSHOT" dest="${lib.dir}" type="jar" unzip="false"/>
-		<dependency groupId="org.getrailo" artifactId="railo.cli" version="${railo.cli.version}" dest="${temp.dir}/rcli" type="jar" unzip="true"/>
-
+		<dependency groupId="jline" artifactId="jline" version="2.12-SNAPSHOT" dest="${railo.lib.dir}" type="jar" unzip="false"/>
+		<!-- Bring in RunWar, Railo Libs and Railo Core -->
+		<dependency groupId="org.cfmlprojects" artifactId="runwar" version="${runwar.version}" 		dest="${railo.lib.dir}" unzip="false" type="jar" />
+		<dependency groupId="org.getrailo" artifactId="railo-jar"  version="${railo.version}" 		dest="${railo.lib.dir}" unzip="false" type="jar" />
+		<dependency groupId="org.getrailo" artifactId="railo.libs" version="${railo.version.major}" dest="${railo.lib.dir}" unzip="true"/>
+		
 		<!-- Mark as init -->
 		<property name="src.isInit" value="true" />
 	</target>
@@ -122,13 +126,52 @@ External Dependencies:
 
 	<!-- Build CLI -->
 	<target name="build.cli" description="builds box.jar" depends="init">
-		<!-- Copy CommandBox code -->
+		<!-- Prepare Compile Path -->
+		<path id="classpath">
+			<fileset dir="${railo.lib.dir}"/>
+		</path>
+		<!-- Compile java source -->
+		<javac srcdir="${src.dir}/java" 
+			   destdir="${temp.dir}/cli/bin" 
+			   source="${railo.javac.compiler}"
+			   target="${railo.javac.compiler}" 
+			   classpath="${toString:classpath}"
+			   debug="false" />
+		
+		<!-- Copy Resources to cli bin -->
+        <copy todir="${temp.dir}/cli/bin/resource" encoding="UTF-8">
+        	<fileset dir="${src.dir}/resources"/>
+    	</copy>
+    	<copy file="${src.dir}/java/cliloader/cli.properties" todir="${temp.dir}/cli/bin/cliloader" />
+    	
+		<!-- we put the loader into railocli.jar and then into libs.zip for classloading reasons -->
+		<jar destfile="${temp.dir}/cli/railocli.jar" filesetmanifest="mergewithoutmain" level="9">
+			<manifest>
+				<attribute name="Main-Class" value="railocli.CLIMain" />
+			</manifest>
+			<fileset dir="${temp.dir}/cli/bin">
+				<exclude name="cliloader/*" />
+			</fileset>
+		</jar>
+		<delete dir="${temp.dir}/cli/bin/railocli" />
+		
+        <!-- zip up the libs -->
+        <zip destfile="${temp.dir}/cli/libs.zip">
+	        <fileset dir="${railo.lib.dir}">
+	            <include name="**/*.jar"/>
+	            <exclude name="**/railo-loader.jar"/>
+	            <exclude name="**/javax.servlet.jar"/>
+	        </fileset>
+	        <fileset file="${temp.dir}/cli/railocli.jar" />
+		</zip>
+        <delete file="${temp.dir}/cli/railocli.jar" />
+        
+        <!-- Copy CommandBox CFML code -->
       	<copy todir="${build.dir}" encoding="UTF-8">
         	<fileset dir="${src.dir}/cfml"/>
         	<fileset file="../license.txt"/>
         	<fileset file="../readme.txt"/>
         </copy>
-        
 		<!-- Replace Version Numbers -->
 		<replaceregexp match='@build.version@' replace="${commandbox.version}" flags="ig" byline="true" encoding="UTF-8">
 		  <fileset dir="${build.dir}" />
@@ -137,32 +180,33 @@ External Dependencies:
 		<replaceregexp match='@build.number@' replace="${build.number}" flags="ig" byline="true" encoding="UTF-8">
 		  <fileset dir="${build.dir}" />
 		</replaceregexp>
-
 		<!--  create the cfml distro zip -->
 		<zip destfile="${dist.dir}/${distro.name}-cfml-${commandbox.version}.zip" update="false" level="9">
 	        <fileset dir="${build.dir}"/>
 		</zip>
 		<!-- Build Checksum for cfml.zip -->
 		<checksum file="${dist.dir}/${distro.name}-cfml-${commandbox.version}.zip" forceoverwrite="true" fileext=".md5" />
-		
-		<!-- update railo cli project with our version stuff -->
-      	<copy tofile="${temp.dir}/rcli/cfml.zip" overwrite="true" encoding="UTF-8">
+		<!-- copy to /cli/cfml.zip -->
+      	<copy tofile="${temp.dir}/cli/cfml.zip" overwrite="true" encoding="UTF-8">
         	<fileset file="${dist.dir}/${distro.name}-cfml-${commandbox.version}.zip" />
         </copy>
-      	<copy todir="${temp.dir}/rcli/resource" overwrite="true" encoding="UTF-8">
-        	<fileset dir="${src.dir}/resources" />
-        </copy>
-		<copy file="${src.dir}/resources/cli.properties" todir="${temp.dir}/rcli/cliloader" overwrite="true" encoding="UTF-8"/>
         
-        <!-- jar up the cli again -->
-        <zip destfile="${dist.dir}/box.jar" update="false" level="9">
-        	<zipfileset dir="${temp.dir}/rcli" />
-        </zip>
+        <!-- store version file -->
+        <echo file="${temp.dir}/cli/version" message="${commandbox.version}+${build.number}" />
+        
+        <!-- Create jar -->
+        <jar destfile="${dist.dir}/box.jar" filesetmanifest="mergewithoutmain" level="9">
+			<manifest>
+				<attribute name="Main-Class" value="cliloader.LoaderCLIMain" />
+			</manifest>
+	        <fileset file="${temp.dir}/cli/version"/>
+			<fileset file="${temp.dir}/cli/libs.zip" />
+			<fileset file="${temp.dir}/cli/cfml.zip" />
+			<fileset dir="${temp.dir}/cli/bin" />
+		</jar>
+		
         <!-- Checksum on Jar -->
         <checksum file="${dist.dir}/box.jar" forceoverwrite="true" fileext=".md5" />
-
-        <!-- cleanup -->
-		<delete dir="${temp.dir}/rcli"/>
 
 		<!-- Create box-repo.json -->
 		<box-repo location="${artifact.dir}"
