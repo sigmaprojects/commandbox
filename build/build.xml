@@ -56,8 +56,6 @@ External Dependencies:
 	<target name="init" description="Init build" unless="src.isInit">
 		<!-- cleanup -->
 		<delete dir="${temp.dir}" />
-		<delete dir="${build.dir}" />
-		<delete dir="${lib.dir}"/>
 		<delete dir="${dist.dir}"/>
 
 		<!-- init dirs -->
@@ -77,23 +75,79 @@ External Dependencies:
 		<!-- Retrieve Build Number -->
 		<property file="build.number"/>
 		
-		<!-- Create version file -->
-		<echo file="${build.dir}/.version" append="false">${commandbox.version}+${build.number}</echo>
-		
+		<!-- Create version files -->
+		<echo file="${build.dir}/.version" 	 append="false">${commandbox.version}+${build.number}</echo>
+        <echo file="${temp.dir}/cli/.version" append="false">${commandbox.version}+${build.number}</echo>
+        
 		<!-- If stg, change perms and owners -->
 		<antcall target="update.permissions" />
-
-		<!-- get commandbox dependencies -->
-		<dependency groupId="jline" artifactId="jline" version="2.12-SNAPSHOT" dest="${railo.lib.dir}" type="jar" unzip="false"/>
-		<!-- Bring in RunWar, Railo Libs and Railo Core -->
-		<dependency groupId="org.cfmlprojects" artifactId="runwar" version="${runwar.version}" 		dest="${railo.lib.dir}" unzip="false" type="jar" />
-		<dependency groupId="org.getrailo" artifactId="railo-jar"  version="${railo.version}" 		dest="${railo.lib.dir}" unzip="false" type="jar" />
-		<dependency groupId="org.getrailo" artifactId="railo.libs" version="${railo.version.major}" dest="${railo.lib.dir}" unzip="true"/>
-		
 		<!-- Mark as init -->
 		<property name="src.isInit" value="true" />
 	</target>
-
+	
+	<!-- Get Dependencies -->
+	<target name="getDependencies" description="Get all the necessary dependencies for the cli build process.">
+		<!-- Get Runwar -->
+		<box-dependency groupID="cfmlprojects" 
+ 						artifactID="runwar" 
+ 						version="${runwar.version}"
+ 						extension="jar"
+ 						destination="${dependencies.dir}"/>
+ 		<copy file="${dependencies.dir}/runwar-${runwar.version}.jar" toDir="${railo.lib.dir}" encoding="UTF-8" />
+ 		<!-- Get JLine directly to railo build dir -->
+ 		<box-dependency groupID="" 
+ 						artifactID="jline" 
+ 						version="${jline.version}"
+ 						extension="jar"
+ 						destination="${dependencies.dir}"/>
+ 		<copy file="${dependencies.dir}/jline-${jline.version}.jar" toDir="${railo.lib.dir}" encoding="UTF-8" />
+ 		<!-- Get Railo as a dependency -->
+ 		<box-dependency groupID="railo" 
+ 						artifactID="railo" 
+ 						classifiers="jars"
+ 						version="${railo.version}"
+ 						destination="${dependencies.dir}"/>
+		<!-- Expand to railo lib for build process -->
+		<unzip src="${dependencies.dir}/railo-jars-${railo.version}.zip" dest="${railo.lib.dir}" overwrite="true"/>
+	</target>
+	
+	<!-- Pack Railo Library -->
+	<target name="pack.railo" description="Pack the Railo Library">
+		<if>
+			<equals arg1="${cli.use.pack200}" arg2="true" />
+			<then>
+				<delete dir="${temp.dir}/packlibs" />
+				<mkdir dir="${temp.dir}/packlibs"/>
+				<mkdir dir="${temp.dir}/packlibs/packed"/>
+				<copy todir="${temp.dir}/packlibs">
+			        <fileset dir="${railo.lib.dir}">
+			            <include name="**/*.jar"/>
+			            <exclude name="**/railo-loader.jar"/>
+			            <exclude name="**/javax.servlet.jar"/>
+			            <exclude name="**/org.mortbay.jetty.jar"/>
+			        </fileset>
+			        <fileset file="${temp.dir}/cli/railocli.jar" />
+				</copy>
+				<packjars dir="${temp.dir}/packlibs" packdir="${temp.dir}/packlibs/packed"/>
+				<zip destfile="${temp.dir}/cli/libs.zip">
+			        <fileset dir="${temp.dir}/packlibs/packed"/>
+				</zip>
+				<delete dir="${temp.dir}/packlibs" />
+			</then>
+			<else>
+				<zip destfile="${temp.dir}/cli/libs.zip">
+			        <fileset dir="${railo.lib.dir}">
+			            <include name="**/*.jar"/>
+			            <exclude name="**/railo-loader.jar"/>
+			            <exclude name="**/javax.servlet.jar"/>
+			        </fileset>
+			        <fileset file="${temp.dir}/cli/railocli.jar" />
+				</zip>
+			</else>
+		</if>
+        <delete file="${temp.dir}/cli/railocli.jar" />
+	</target>
+	
 	<!-- update permissions on reports -->
 	<target name="update.permissions" description="Update staging server permissions">
 		<!-- Integration permissions -->
@@ -113,7 +167,7 @@ External Dependencies:
 	<!-- Build everything -->
 	<target name="build.cli.all" depends="build.cli.deb,build.cli.exe,build.cli.jre,build.cli.rpm,build.apidocs">
 		<!-- Remove Unecessary build files from repo, so to not confuse -->
-		<antcontrib:if>
+		<if>
 			<equals arg1="${build.type}" arg2="auto" />
 			<then>
 				<delete>
@@ -121,11 +175,11 @@ External Dependencies:
 					<fileset file="${dist.dir}/box.exe" />
 				</delete>
 			</then>
-		</antcontrib:if>
+		</if>
 	</target>
 
 	<!-- Build CLI -->
-	<target name="build.cli" description="builds box.jar" depends="init">
+	<target name="build.cli" description="builds box.jar" depends="init,getDependencies">
 		<!-- Prepare Compile Path -->
 		<path id="classpath">
 			<fileset dir="${railo.lib.dir}"/>
@@ -138,7 +192,7 @@ External Dependencies:
 			   classpath="${toString:classpath}"
 			   debug="false" />
 		
-		<!-- Copy Resources to cli bin -->
+		<!-- Copy Resources to build cli bin -->
         <copy todir="${temp.dir}/cli/bin/resource" encoding="UTF-8">
         	<fileset dir="${src.dir}/resources"/>
     	</copy>
@@ -156,15 +210,7 @@ External Dependencies:
 		<delete dir="${temp.dir}/cli/bin/railocli" />
 		
         <!-- zip up the libs -->
-        <zip destfile="${temp.dir}/cli/libs.zip">
-	        <fileset dir="${railo.lib.dir}">
-	            <include name="**/*.jar"/>
-	            <exclude name="**/railo-loader.jar"/>
-	            <exclude name="**/javax.servlet.jar"/>
-	        </fileset>
-	        <fileset file="${temp.dir}/cli/railocli.jar" />
-		</zip>
-        <delete file="${temp.dir}/cli/railocli.jar" />
+        <antcall target="pack.railo" />
         
         <!-- Copy CommandBox CFML code -->
       	<copy todir="${build.dir}" encoding="UTF-8">
@@ -190,9 +236,6 @@ External Dependencies:
       	<copy tofile="${temp.dir}/cli/cfml.zip" overwrite="true" encoding="UTF-8">
         	<fileset file="${dist.dir}/${distro.name}-cfml-${commandbox.version}.zip" />
         </copy>
-        
-        <!-- store version file -->
-        <echo file="${temp.dir}/cli/version" message="${commandbox.version}+${build.number}" />
         
         <!-- Create jar -->
         <jar destfile="${dist.dir}/box.jar" filesetmanifest="mergewithoutmain" level="9">
@@ -407,13 +450,13 @@ External Dependencies:
 	<!-- Get launch4j -->
 	<target name="getlaunch4j" description="Get an OS dependent launch4j into the build directory">
 		<!-- do a check -->
-		<antcontrib:if>
+		<if>
 	        <available file="launch4j/launch4j.jar" />
 	        <then><echo>Launch4j Binary found!</echo></then>
 	        <else>
-	            <echo>Launch4j not found, getting artifact from ${ortus.repoURL}</echo>
+	            <echo>Launch4j not found, getting artifact from ${box.repo.url}</echo>
 	            <!-- Determine OS type -->
-				<antcontrib:if>
+				<if>
 					<os family="windows" />
 					<then><property name="launch4j.filename" value="launch4j-${launch4j.version}-win32.zip"/></then>
 					<elseif>
@@ -424,13 +467,13 @@ External Dependencies:
 						<os family="unix" />
 						<then><property name="launch4j.filename" value="launch4j-${launch4j.version}-linux.tgz"/></then>
 					</elseif>
-				</antcontrib:if>
-				<echo>Downloading ${launch4j.filename} from ${ortus.repoURL}...</echo>
-				<get src="${ortus.repoURL}/launch4j/${launch4j.version}/${launch4j.filename}" 
+				</if>
+				<echo>Downloading ${launch4j.filename} from ${box.repo.url}...</echo>
+				<get src="${box.repo.url}/launch4j/${launch4j.version}/${launch4j.filename}" 
 					 dest="."
 					 verbose="true" />
 				<!-- Unzip according to OS -->
-				<antcontrib:if>
+				<if>
 					<os family="windows" />
 					<then>
 						<unzip src="${launch4j.filename}" dest="." overwrite="true"/>
@@ -438,15 +481,47 @@ External Dependencies:
 					<else>
 						<untar src="${launch4j.filename}" dest="." compression="gzip"/>
 					</else>
-				</antcontrib:if>
+				</if>
 				<!-- Removal -->
 				<delete file="${launch4j.filename}" />
 	        </else>
-	    </antcontrib:if>
+	    </if>
 	    <!-- Add execution perms every time just in case -->
 	    <chmod dir="./launch4j/bin/" perm="ugo+rx" includes="*"/>
 	</target>
 
+	<!-- Macro to pack jars via java tool -->
+	<macrodef name="packjars">
+	    <attribute name="dir"/>
+	    <attribute name="packdir"/>
+	    <sequential>
+	    	<for param="file">
+	    	  <path>
+	    	    <fileset dir="@{dir}" includes="*.jar"/>
+	    	  </path>
+	    	  <sequential>
+	    	  	<var name="pack200.destdir" unset = "true"/> 
+	    	  	<property name="pack200.destdir" location="@{packdir}"/> 
+	    	  	<var name="pack200.destfile" unset = "true"/> 
+                <basename property="pack200.destfile" file="@{file}" /> 
+	    	  	<echo message="packing @{file}"/>
+		        <exec executable="${java.home}/bin/pack200" resultproperty="pack.resultcode">
+		            <arg value="${pack200.destdir}/${pack200.destfile}.pack.gz"/>
+		            <arg value="@{file}"/>
+		        </exec>
+	    	  	<if>
+	    	  		<equals arg1="${pack.resultcode}" arg2="0" />
+	    	  		<else>
+	    	  			<copy file="@{file}" todir="@{packdir}" verbose="false"/>
+	    	  			<delete file="${pack200.destdir}/${pack200.destfile}.pack.gz" quiet="true" verbose="false"/>
+	    	  		</else>
+	    	  	</if>
+	    	  	<var unset="true" name="pack.resultcode" />
+	    	  </sequential>
+	    	</for>
+	     </sequential>
+	</macrodef>
+	
 	<!-- ********************************************************************************************-->
 	<!--						TEST TARGETS 														 -->
 	<!-- ********************************************************************************************-->
