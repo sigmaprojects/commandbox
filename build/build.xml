@@ -114,7 +114,7 @@ External Dependencies:
 	<!-- Pack Railo Library -->
 	<target name="pack.railo" description="Pack the Railo Library">
 		<if>
-			<equals arg1="${cli.use.pack200}" arg2="true" />
+			<equals arg1="${java.pack200}" arg2="true" />
 			<then>
 				<delete dir="${temp.dir}/packlibs" />
 				<mkdir dir="${temp.dir}/packlibs"/>
@@ -187,10 +187,10 @@ External Dependencies:
 		<!-- Compile java source -->
 		<javac srcdir="${src.dir}/java" 
 			   destdir="${temp.dir}/cli/bin" 
-			   source="${railo.javac.compiler}"
-			   target="${railo.javac.compiler}" 
+			   source="${java.compiler}"
+			   target="${java.compiler}" 
 			   classpath="${toString:classpath}"
-			   debug="false" />
+			   debug="${java.debug}" />
 		
 		<!-- Copy Resources to build cli bin -->
         <copy todir="${temp.dir}/cli/bin/resource" encoding="UTF-8">
