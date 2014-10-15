@@ -1,3 +1,24 @@
+/**
+ * Copyright (C) 2014 Ortus Solutions, Corp
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
+ * IN THE SOFTWARE.
+ */
 package cliloader;
 
 import java.io.*;
@@ -7,10 +28,21 @@ import java.util.TimerTask;
 import java.util.jar.*;
 import java.util.zip.GZIPInputStream;
 
-public class Util {
+/**
+ * Our system utility class
+ * @author Ortus Solutions <info@ortussolutions.com>
+ */
+public final class Util {
 
 	private static final int KB = 1024;
 
+	/**
+	 * 
+	 * @param classLoader
+	 * @param resourcePath
+	 * @param libDir
+	 * @param debug 
+	 */
 	public static void unzipInteralZip(ClassLoader classLoader, String resourcePath, File libDir, boolean debug) {
 		if (debug)
 			System.out.println("Extracting " + resourcePath);
@@ -59,6 +91,12 @@ public class Util {
 
 	}
 	
+	/**
+	 * 
+	 * @param classLoader
+	 * @param resourcePath
+	 * @param dest 
+	 */
 	public static void copyInternalFile(ClassLoader classLoader, String resourcePath, File dest) {
 		URL resource = classLoader.getResource(resourcePath);
 		try {
@@ -75,7 +113,11 @@ public class Util {
 		}
         
 	}
-
+	
+	/**
+	 * 
+	 * @param inFile 
+	 */
 	public static void unpack(File inFile) {
 
 		JarOutputStream out = null;
@@ -113,6 +155,14 @@ public class Util {
 		}
 	}
 
+	/**
+	 * 
+	 * @param input
+	 * @param output
+	 * @param bufferSize
+	 * @return
+	 * @throws IOException 
+	 */
 	public static int writeStreamTo(final InputStream input, final OutputStream output, int bufferSize)
 			throws IOException {
 		int available = Math.min(input.available(), 256 * KB);
