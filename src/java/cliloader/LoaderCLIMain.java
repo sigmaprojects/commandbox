@@ -145,7 +145,11 @@ public class LoaderCLIMain {
 		subvertLoggers( debugMode ? "DEBUG" : "WARN", LOGGERS );
 		
 		// Debug Args
-		if( debugMode ){ System.out.println( "Sent Args: " + config.toString() ); }
+		if( debugMode ){ 
+			System.out.println( "Sent raw args: " + Arrays.toString( args ) ); 
+			System.out.println( "Sent argList: " + argList ); 
+			System.out.println( "Sent config map: " + config.toString() ); 
+		}
 		
 		// Get the user working directory
 		String currentDir = System.getProperty( "user.dir" );
@@ -156,16 +160,25 @@ public class LoaderCLIMain {
 		File cli_home;
 		// was a commandbox_home argument sent?
 		if( config.get( "commandbox_home" ) != null ){
-			cli_home = new File( config.get( "CommandBox_home" ) );
+			cli_home = new File( config.get( "commandbox_home" ) );
 			listRemoveContaining( argList, "-CommandBox_home" );
+			if( debugMode ){
+				System.out.println( "CLI Home passed as argument: " + cli_home );
+			}
 		} 
 		// Do we have a system property?
 		else if( System.getProperty( "COMMANDBOX_HOME") != null ){
 			cli_home = new File( System.getProperty( "COMMANDBOX_HOME" ) );
+			if( debugMode ){
+				System.out.println( "CLI Home discovered from property: " + cli_home );
+			}
 		} 
 		// Do we have it as an environment property
 		else if( env.get( "COMMANDBOX_HOME" ) != null ){
 			cli_home = new File( env.get( "COMMANDBOX_HOME" ) );
+			if( debugMode ){
+				System.out.println( "CLI Home detected from Java environment: " + cli_home );
+			}
 		} 
 		// Else we default to the user's home directory
 		else {
@@ -181,7 +194,7 @@ public class LoaderCLIMain {
 			System.out.println( "Creating CommandBox Home: " + cli_home + " (change with -CommandBox_home=/path/to/dir)" );
 			cli_home.mkdir();
 		} else if( debugMode ){
-			System.out.println("CLI Home: " + cli_home );
+			System.out.println( "CLI Home: " + cli_home );
 		}
 		
 		// Get CommandBox LibDir
@@ -295,7 +308,7 @@ public class LoaderCLIMain {
     		// Location of CLI Shell
 			String uri = cli_home.getCanonicalPath() + CLI_SHELL;
 			
-			// Execute Command
+			// Execute Command Check
         	if( argList.size() > 1 && argList.contains("execute") ){
         		// bypass the shell for running pure CFML files
         		int executeIndex = argList.indexOf( "execute" );
@@ -323,7 +336,10 @@ public class LoaderCLIMain {
 			
 			// Store arguments in system property so CFML can get to it
     		System.setProperty( "cfml.cli.arguments", arrayToList( argList.toArray( new String[ argList.size() ] ), " " ) );
-            
+            if( debugMode ){
+				System.out.println( "Sent cfml.cli.arguments" + System.getProperty( "cfml.cli.arguments" ) );
+			}
+			
 			// Load railo CLIMain
 			Class<?> cli;
 	        cli = cl.loadClass( "railocli.CLIMain" );
