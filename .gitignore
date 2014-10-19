@@ -16,8 +16,5 @@ tests/testbox
 /apidocs/CommandBox-CommandDocs/
 build-local.properties
 build/resources
-/src/nbproject
 /src/dist/
 /src/build/
-src/build.xml
-src/manifest.mf
