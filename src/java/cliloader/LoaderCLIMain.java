@@ -284,8 +284,6 @@ public class LoaderCLIMain {
         //URLClassLoader cl = new URLClassLoader(urls,null);
         URLClassLoader cl = new URLClassLoader( urls, CLASSLOADER );
 		//Thread.currentThread().setContextClassLoader(cl);
-        InputStream originalIn = System.in;
-        PrintStream originalOut = System.out;
 		//    	Thread shutdownHook = new Thread( "cli-shutdown-hook" ) { public void run() { cl.close(); } };
 		//      Runtime.getRuntime().addShutdownHook( shutdownHook );	
 		
@@ -304,8 +302,7 @@ public class LoaderCLIMain {
 			// debug
 			if( debugMode ) System.out.println( "Running in CLI mode" );
 			
-        	System.setIn( new NonClosingInputStream( System.in ) );
-    		// Location of CommandBox BootStrap Shell
+        	// Location of CommandBox BootStrap Shell
 			String uri = cli_home.getCanonicalPath() + CLI_SHELL;
 			
 			// Execute Command Check
@@ -355,8 +352,6 @@ public class LoaderCLIMain {
 			}
 			
 			System.out.flush();
-			System.setOut( originalOut );
-	        System.setIn( originalIn );
 			System.exit( exitCode );
         } 
 		// SERVER MODE
