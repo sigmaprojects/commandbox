@@ -305,7 +305,7 @@ public class LoaderCLIMain {
 			if( debugMode ) System.out.println( "Running in CLI mode" );
 			
         	System.setIn( new NonClosingInputStream( System.in ) );
-    		// Location of CLI Shell
+    		// Location of CommandBox BootStrap Shell
 			String uri = cli_home.getCanonicalPath() + CLI_SHELL;
 			
 			// Execute Command Check
@@ -323,14 +323,13 @@ public class LoaderCLIMain {
 			// If first argument is a file, try to execute it
 			else if( argList.size() > 0 && new File( argList.get( 0 ) ).exists() ){
         		String filename = argList.get( 0 );
-        		// this will force the shell to run the execute command
-        		if( filename.matches( "/.rs*?$" ) || filename.matches("/.box*$") ){
-        			argList.add( 0, "execute" );
-        		} else {
-            		File cfmlFile = new File( filename );
-            		if( cfmlFile.exists() ){
-            			uri = cfmlFile.getCanonicalPath();
-            		}
+        		// Is this a CommandBox Recipe?
+        		if( filename.endsWith( ".boxr" ) ){
+        			argList.add( 0, "recipe" );
+        		} 
+				// Else, just execute the file
+				else {
+					uri = new File( filename ).getCanonicalPath();
         		}
         	}
 			
