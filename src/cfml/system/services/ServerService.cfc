@@ -199,6 +199,17 @@ component accessors="true" singleton{
 			setServerInfo( serverInfo );
 			return results;
 		} catch (any e) {
+			try {
+				// connect to the socket directly to see if it is open and listening.
+				var socket = createObject( "java", "java.net.Socket" ).init(arguments.serverInfo.host,arguments.serverInfo.port);
+				socket.close();
+			} catch(java.io.IOException ioe) {
+				// failure from IOException means the socket is closed and the server is stopped.
+				serverInfo.status 		= "stopped";
+				serverInfo.statusInfo 	= { command:variables.javaCommand, arguments:args, result:results.messages };
+				setServerInfo( serverInfo );
+				return { error=false, messages="Server was not listening on #arguments.serverInfo.host#:#arguments.serverInfo.port#.#chr(10)#Server status changed to stopped." };
+			} 
 			serverInfo.status 		= "unknown";
 			serverInfo.statusInfo 	= { command:variables.javaCommand, arguments:args, result:results.messages };
 			setServerInfo( serverInfo );
